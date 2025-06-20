@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Definir Preço</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-image: url('luis.png');
+      padding: 30px;
+    }
+    .container {
+      max-width: 400px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      margin-bottom: 15px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .status {
+      margin-top: 15px;
+      font-weight: bold;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Definir Preço de Cálculo</h2>
+  <label for="precoInput">Valor (inteiro):</label>
+  <input type="number" id="precoInput" placeholder="Ex: 50" />
+  <button id="btnSalvar">Salvar Preço</button>
+  <div class="status" id="status"></div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, updateDoc
+  } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+  import {
+    getAuth, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+
+  const firebaseConfig = {
+      apiKey: "AIzaSyBJGaEM_wzqQMcW4HD4M0S-TX6c-F3ESak",
+      authDomain: "akurula-bae89.firebaseapp.com",
+      projectId: "akurula-bae89",
+      storageBucket: "akurula-bae89.firebasestorage.app",
+      messagingSenderId: "884057010989",
+      appId: "1:884057010989:web:79dacebe1c0c99afdad9a4",
+      measurementId: "G-PYQBK3XZG4"
+    };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  const precoInput = document.getElementById("precoInput");
+  const btnSalvar = document.getElementById("btnSalvar");
+  const statusDiv = document.getElementById("status");
+
+  let userId = null;
+
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      userId = user.uid;
+      const docRef = doc(db, "users", userId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.preco !== undefined) {
+          precoInput.value = data.preco;
+          statusDiv.textContent = "Preço atual: " + data.preco;
+        } else {
+          statusDiv.textContent = "Você ainda não definiu o preço.";
+        }
+      } else {
+        await setDoc(docRef, { preco: 0 });
+        statusDiv.textContent = "Documento criado. Defina o preço.";
+      }
+    } else {
+      statusDiv.textContent = "Por favor, faça login para acessar.";
+      btnSalvar.disabled = true;
+    }
+  });
+
+  btnSalvar.addEventListener("click", async () => {
+    const novoPreco = parseInt(precoInput.value);
+    if (isNaN(novoPreco) || novoPreco < 0) {
+      statusDiv.textContent = "Insira um valor inteiro válido.";
+      return;
+    }
+
+    try {
+      const userDocRef = doc(db, "users", userId);
+      await updateDoc(userDocRef, { preco: novoPreco });
+      statusDiv.textContent = "Preço atualizado com sucesso para " + novoPreco;
+    } catch (error) {
+      statusDiv.textContent = "Erro ao salvar: " + error.message;
+    }
+  });
+</script>
+
+</body>
+</html>

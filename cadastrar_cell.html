@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Cadastro de celular</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-image: url('luis.png');
+    }
+    .container {
+      background-color: white;
+      padding: 25px;
+      border-radius: 8px;
+      max-width: 600px;
+      margin: auto;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    h2 {
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    input[type='text'], select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      box-sizing: border-box;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    .modelo {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .modelo input, .modelo select {
+      flex: 1;
+    }
+    .modelo button {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 10px;
+      cursor: pointer;
+      flex-shrink: 0;
+      width: 40px;
+      text-align: center;
+    }
+    #add-modelo,
+    #salvar {
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100%;
+      font-weight: bold;
+      font-size: 16px;
+    }
+    #mensagem {
+      text-align: center;
+      margin-top: 20px;
+      font-weight: bold;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Cadastro de Marcas e Modelos</h2>
+
+    <label for="marca">Marca:</label>
+    <input type="text" id="marca" placeholder="Ex: Samsung, Apple, Xiaomi" />
+
+    <label>Modelos (e fórmula):</label>
+    <div id="modelos-container">
+      <div class="modelo">
+        <input type="text" name="modeloNome[]" placeholder="Modelo 1" />
+        <select name="modeloFormula[]">
+          <option value="">Selecione a fórmula</option>
+          <option value="1">Fórmula 1 (Itel, Hisense, Tecno, Stylo, Hurricane, Azumi, Astro, Morep)</option>
+          <option value="2">Fórmula 2 (Mobicel)</option>
+          <option value="3">Fórmula 3 (Mobiwire)</option>
+        </select>
+        <button onclick="removerModelo(this)">✖</button>
+      </div>
+    </div>
+
+    <button id="add-modelo">Adicionar Modelo</button>
+    <button id="salvar">Salvar</button>
+    <div id="mensagem"></div>
+  </div>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      getDoc,
+    } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+    import {
+      getAuth,
+      onAuthStateChanged,
+    } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJGaEM_wzqQMcW4HD4M0S-TX6c-F3ESak",
+      authDomain: "akurula-bae89.firebaseapp.com",
+      projectId: "akurula-bae89",
+      storageBucket: "akurula-bae89.firebasestorage.app",
+      messagingSenderId: "884057010989",
+      appId: "1:884057010989:web:79dacebe1c0c99afdad9a4",
+      measurementId: "G-PYQBK3XZG4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    let currentUser = null;
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUser = user;
+        console.log("Usuário logado:", user.email);
+      } else {
+        currentUser = null;
+        alert("Você precisa estar logado para salvar dados.");
+      }
+    });
+
+    const container = document.getElementById("modelos-container");
+    const addButton = document.getElementById("add-modelo");
+
+    addButton.addEventListener("click", () => {
+      const count = container.children.length + 1;
+      const div = document.createElement("div");
+      div.className = "modelo";
+      div.innerHTML = `
+        <input type="text" name="modeloNome[]" placeholder="Modelo ${count}" />
+        <select name="modeloFormula[]">
+          <option value="">Selecione a fórmula</option>
+          <option value="1">Fórmula 1 (Itel, Hisense, Tecno, Stylo, Hurricane, Azumi, Astro, Morep)</option>
+          <option value="2">Fórmula 2 (Mobicel)</option>
+          <option value="3">Fórmula 3 (Mobiwire)</option>
+        </select>
+        <button onclick="removerModelo(this)">✖</button>
+      `;
+      container.appendChild(div);
+    });
+
+    window.removerModelo = function (btn) {
+      const div = btn.parentElement;
+      if (container.children.length > 1) {
+        container.removeChild(div);
+      } else {
+        alert("Precisa ter pelo menos um modelo.");
+      }
+    };
+
+    document.getElementById("salvar").addEventListener("click", async () => {
+      const marca = document.getElementById("marca").value.trim();
+      const nomes = Array.from(document.getElementsByName("modeloNome[]"))
+        .map(input => input.value.trim());
+      const formulas = Array.from(document.getElementsByName("modeloFormula[]"))
+        .map(sel => sel.value.trim());
+
+      if (!marca) {
+        alert("Preencha a marca.");
+        return;
+      }
+
+      const modelosValidos = nomes.every((nome, i) => nome.length > 0 && ["1", "2", "3"].includes(formulas[i]));
+      if (!modelosValidos) {
+        alert("Preencha todos os modelos e selecione uma fórmula válida (1, 2 ou 3).");
+        return;
+      }
+
+      if (!currentUser) {
+        alert("Você precisa estar logado para salvar.");
+        return;
+      }
+
+      try {
+        const userDocRef = doc(db, "users", "qT5S0wYZtJVmmfj81M40UXTUj6t2");
+        const docSnap = await getDoc(userDocRef);
+
+        let marcas = {};
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.marcas && typeof data.marcas === "object") {
+            marcas = data.marcas;
+          }
+        }
+
+        const novosModelosObj = {};
+        for (let i = 0; i < nomes.length; i++) {
+          novosModelosObj[nomes[i]] = parseInt(formulas[i]);
+        }
+
+        if (marcas[marca] && typeof marcas[marca] === "object") {
+          marcas[marca] = { ...marcas[marca], ...novosModelosObj };
+        } else {
+          marcas[marca] = novosModelosObj;
+        }
+
+        await setDoc(
+          userDocRef,
+          {
+            marcas,
+            atualizadoEm: new Date(),
+          },
+          { merge: true }
+        );
+
+        document.getElementById("mensagem").innerText = "Dados salvos com sucesso!";
+        document.getElementById("marca").value = "";
+        container.innerHTML = `
+          <div class="modelo">
+            <input type="text" name="modeloNome[]" placeholder="Modelo 1" />
+            <select name="modeloFormula[]">
+              <option value="">Selecione a fórmula</option>
+              <option value="1">Fórmula 1 (Itel, Hisense, Tecno, Stylo, Hurricane, Azumi, Astro, Morep)</option>
+              <option value="2">Fórmula 2 (Mobicel)</option>
+              <option value="3">Fórmula 3 (Mobiwire)</option>
+            </select>
+            <button onclick="removerModelo(this)">✖</button>
+          </div>
+        `;
+      } catch (error) {
+        document.getElementById("mensagem").innerText = "Erro ao salvar: " + error.message;
+      }
+    });
+  </script>
+</body>
+</html>

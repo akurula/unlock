@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Gerenciar Saldo de Usuários</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-image: url('luis.png');
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      width: 80%;
+      margin: 50px auto;
+      padding: 20px;
+      background-color: white;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    table, th, td {
+      border: 1px solid #ddd;
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    input[type="number"] {
+      padding: 5px;
+      width: 80%;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+    button {
+      padding: 5px 10px;
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    button:disabled {
+      background-color: #ccc;
+    }
+    .message {
+      font-size: 16px;
+      color: red;
+      text-align: center;
+      display: none;
+    }
+    .success-message {
+      font-size: 16px;
+      color: green;
+      text-align: center;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>Gerenciar Saldo de Usuários</h2>
+    <p id="success-message" class="success-message">Saldo atualizado com sucesso!</p>
+    <p id="error-message" class="message">Ocorreu um erro ao atualizar o saldo.</p>
+
+    <table id="users-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Email</th>
+          <th>Saldo</th>
+          <th>Inserir Saldo</th>
+          <th>Ok</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- As linhas da tabela serão preenchidas dinamicamente -->
+      </tbody>
+    </table>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, updateDoc, collection, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJGaEM_wzqQMcW4HD4M0S-TX6c-F3ESak",
+      authDomain: "akurula-bae89.firebaseapp.com",
+      projectId: "akurula-bae89",
+      storageBucket: "akurula-bae89.firebasestorage.app",
+      messagingSenderId: "884057010989",
+      appId: "1:884057010989:web:79dacebe1c0c99afdad9a4",
+      measurementId: "G-PYQBK3XZG4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getFirestore(app);
+
+    const usersTable = document.getElementById("users-table").getElementsByTagName('tbody')[0];
+    const successMessage = document.getElementById("success-message");
+    const errorMessage = document.getElementById("error-message");
+
+    // Função que vai ser executada quando o estado de autenticação do usuário mudar
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        await carregarUsuarios();
+        ouvirAlteracoes(); // Ouve as alterações em tempo real
+      } else {
+        alert("Você precisa estar logado para acessar essa página.");
+      }
+    });
+
+    // Carregar usuários do Firestore
+    async function carregarUsuarios() {
+      try {
+        const querySnapshot = await getDocs(collection(db, "users"));
+        if (querySnapshot.empty) {
+          alert("Nenhum usuário encontrado.");
+          return;
+        }
+
+        querySnapshot.forEach((doc) => {
+          const userData = doc.data();
+          const row = usersTable.insertRow();
+
+          const cellId = row.insertCell(0);
+          const cellEmail = row.insertCell(1);
+          const cellSaldo = row.insertCell(2);
+          const cellSaldoInput = row.insertCell(3);
+          const cellButton = row.insertCell(4);
+
+          cellId.textContent = doc.id;
+          cellEmail.textContent = userData.email || "Email não disponível"; // Exibe email do usuário
+
+          // Verificar se o saldo existe e é um número válido
+          const saldo = parseInt(userData.saldo, 10);  // Garantir que o saldo seja tratado como inteiro
+          if (!isNaN(saldo)) {
+            cellSaldo.textContent = saldo.toFixed(0);  // Exibe como número inteiro
+          } else {
+            cellSaldo.textContent = "0";  // Se o saldo não for válido, exibimos 0
+          }
+
+          const saldoInput = document.createElement("input");
+          saldoInput.type = "number";
+          saldoInput.placeholder = "Insira valor";
+          saldoInput.min = 0;
+          saldoInput.value = 0;
+          cellSaldoInput.appendChild(saldoInput);
+
+          const okButton = document.createElement("button");
+          okButton.textContent = "Ok";
+          okButton.disabled = true;
+          okButton.onclick = async () => {
+            const novoSaldo = parseInt(saldoInput.value, 10);  // Garantir que o valor inserido seja um inteiro
+            if (isNaN(novoSaldo) || novoSaldo <= 0) {
+              alert("Por favor, insira um valor válido para o saldo.");
+              return;
+            }
+            await atualizarSaldo(doc.id, novoSaldo);
+            saldoInput.value = 0;
+          };
+          cellButton.appendChild(okButton);
+
+          saldoInput.addEventListener('input', () => {
+            if (saldoInput.value > 0) {
+              okButton.disabled = false;
+            } else {
+              okButton.disabled = true;
+            }
+          });
+        });
+      } catch (error) {
+        console.error("Erro ao carregar usuários:", error);
+      }
+    }
+
+    // Função para atualizar o saldo no Firestore
+    async function atualizarSaldo(userId, novoSaldo) {
+      try {
+        const userRef = doc(db, "users", userId);
+        const userDoc = await getDoc(userRef);
+
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const saldoAtual = parseInt(userData.saldo, 10) || 0;  // Garantir que o saldo atual seja um número inteiro
+          const saldoFinal = saldoAtual + novoSaldo;
+
+          await updateDoc(userRef, { saldo: saldoFinal });
+
+          successMessage.style.display = 'block';
+          setTimeout(() => {
+            successMessage.style.display = 'none';
+          }, 3000);
+        }
+      } catch (error) {
+        console.error("Erro ao atualizar saldo:", error);
+        errorMessage.style.display = 'block';
+        setTimeout(() => {
+          errorMessage.style.display = 'none';
+        }, 3000);
+      }
+    }
+
+    // Função para ouvir as alterações no saldo em tempo real
+    function ouvirAlteracoes() {
+      const usersRef = collection(db, "users");
+      onSnapshot(usersRef, (snapshot) => {
+        snapshot.docChanges().forEach(change => {
+          const userId = change.doc.id;
+          const saldoAtualizado = parseInt(change.doc.data().saldo, 10) || 0;  // Garantir que o saldo seja um inteiro
+          const row = usersTable.querySelector(`tr[data-id='${userId}']`);
+          if (row) {
+            row.querySelector('td:nth-child(3)').textContent = saldoAtualizado.toFixed(0);  // Exibir sem decimais
+          }
+        });
+      });
+    }
+  </script>
+</body>
+</html>

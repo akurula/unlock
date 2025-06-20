@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pagamento</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-image: url('luis.png');
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      text-align: center;
+      color: white;
+    }
+    .container {
+      max-width: 500px;
+      margin: 50px auto;
+      background-color: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      color: #333;
+    }
+    h3 {
+      color: red;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 15px;
+      background-color: #4CAF50;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .message {
+      color: red;
+      font-size: 14px;
+      text-align: center;
+    }
+    .success-message {
+      color: green;
+      font-size: 18px;
+      text-align: center;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="payment-container">
+    <form id="payment-form">
+      <h3>ATENÇÃO! FIQUE AQUI DURANTE 1 MINUTO SEM RECUAR OU SAIR APÓS INSERIR O PIN ATÉ QUE SAIA AUTOMATICAMENTE PARA OUTRA PÁGINA. Se ocorrer algum problema, ligue para 870691544 ou mande mensagem no WhatsApp pelo mesmo número.</h3>
+
+      <div class="form-group">
+        <label for="payment-method">Método de Pagamento</label>
+        <select id="payment-method" name="payment-method" required>
+          <option value="emola">Mpesa</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="numero">Número do Mpesa</label>
+        <input type="text" id="numero" name="numero" placeholder="Digite seu número do Mpesa" required />
+      </div>
+
+      <div class="form-group">
+        <label for="valor">Valor do Pagamento (MZN)</label>
+        <input type="number" id="valor" name="valor" min="1" placeholder="Digite o valor em meticais" required />
+      </div>
+
+      <button type="submit">Confirmar Pagamento</button>
+
+      <p class="message" id="error-message" style="display: none;">Erro ao processar pagamento. Tente novamente.</p>
+      <p class="message" id="wait-message" style="display: none;">Aguarde pela solicitação do PIN no seu celular e insira-o para confirmar o pagamento.</p>
+      <p class="success-message" id="success-message" style="display: none;">Pagamento realizado com sucesso! Redirecionando...</p>
+    </form>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import { getFirestore, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJGaEM_wzqQMcW4HD4M0S-TX6c-F3ESak",
+      authDomain: "akurula-bae89.firebaseapp.com",
+      projectId: "akurula-bae89",
+      storageBucket: "akurula-bae89.firebasestorage.app",
+      messagingSenderId: "884057010989",
+      appId: "1:884057010989:web:79dacebe1c0c99afdad9a4",
+      measurementId: "G-PYQBK3XZG4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getFirestore(app);
+
+    document.getElementById('payment-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const numero = document.getElementById('numero').value.trim();
+      const valorStr = document.getElementById('valor').value.trim();
+      const valor = parseInt(valorStr, 10);
+
+      if (isNaN(valor) || valor <= 0) {
+        alert("Por favor, insira um valor válido maior que zero.");
+        return;
+      }
+
+      const data = {
+        carteira: "1718217385406x366999215375646700",
+        numero: numero,
+        "quem comprou": "Luis",
+        valor: valorStr
+      };
+
+      document.getElementById('wait-message').style.display = 'block';
+      document.getElementById('error-message').style.display = 'none';
+      document.getElementById('success-message').style.display = 'none';
+
+      try {
+        const response = await fetch('https://mozpayment.co.mz/api/1.1/wf/pagamentorotativompesa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        console.log(result);
+
+        if (response.ok && result.status === 'success' && result.response.status === 200) {
+          const user = auth.currentUser;
+          if (user) {
+            const userRef = doc(db, "users", user.uid);
+            const docSnap = await getDoc(userRef);
+            let saldoAtual = 0;
+
+            if (docSnap.exists()) {
+              const dataUser = docSnap.data();
+              saldoAtual = dataUser.saldo || 0;
+            }
+
+            const novoSaldo = saldoAtual + valor;
+            await updateDoc(userRef, { saldo: novoSaldo });
+
+            document.getElementById('wait-message').style.display = 'none';
+            document.getElementById('success-message').style.display = 'block';
+
+            setTimeout(() => {
+              cleanPage();
+              window.location.href = "./calcular.html";
+            }, 2000);
+          } else {
+            throw new Error("Usuário não autenticado.");
+          }
+        } else {
+          throw new Error("Pagamento não aprovado.");
+        }
+      } catch (error) {
+        console.error('Erro:', error);
+        document.getElementById('wait-message').style.display = 'none';
+        document.getElementById('error-message').style.display = 'block';
+
+        setTimeout(() => {
+          document.getElementById('error-message').style.display = 'none';
+        }, 3000);
+      }
+    });
+
+    function cleanPage() {
+      document.getElementById('payment-form').reset();
+      document.getElementById('error-message').style.display = 'none';
+      document.getElementById('wait-message').style.display = 'none';
+      document.getElementById('success-message').style.display = 'none';
+      document.querySelector('button').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

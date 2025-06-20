@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Atualizar Marca e Modelo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-image: url('luis.png');
+    }
+    .container {
+      background-color: white;
+      padding: 25px;
+      border-radius: 8px;
+      max-width: 600px;
+      margin: auto;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    h2, h3 {
+      text-align: center;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      box-sizing: border-box;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100%;
+      font-weight: bold;
+      font-size: 16px;
+    }
+    #mensagem {
+      text-align: center;
+      margin-top: 20px;
+      font-weight: bold;
+      color: green;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Atualizar Marca ou Modelo</h2>
+
+    <h3>Atualizar Nome da Marca</h3>
+    <label for="marca-antiga">Marca Atual:</label>
+    <input type="text" id="marca-antiga" placeholder="Ex: Samsung" />
+    <label for="marca-nova">Novo Nome da Marca:</label>
+    <input type="text" id="marca-nova" placeholder="Ex: Samsung Mobile" />
+    <button id="atualizar-marca">Atualizar Marca</button>
+
+    <h3>Atualizar Modelo</h3>
+    <label for="marca-modelo">Marca:</label>
+    <input type="text" id="marca-modelo" placeholder="Ex: Samsung" />
+    <label for="modelo-antigo">Modelo Atual:</label>
+    <input type="text" id="modelo-antigo" placeholder="Ex: Galaxy S21" />
+    <label for="modelo-novo">Novo Nome do Modelo:</label>
+    <input type="text" id="modelo-novo" placeholder="Deixe vazio se não quiser alterar o nome do modelo" />
+    <label for="nova-formula">Nova Fórmula:</label>
+    <select id="nova-formula">
+      <option value="">Nao selecione nova formula, se nao quizer alterar</option>
+      <option value="1">Fórmula 1 (Itel, Hisense, Tecno, Stylo, Hurricane, Azumi, Astro, Morep)</option>
+      <option value="2">Fórmula 2 (Mobicel)</option>
+      <option value="3">Fórmula 3 (Mobiwire)</option>
+    </select>
+    <button id="atualizar-modelo">Atualizar Modelo</button>
+
+    <div id="mensagem"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
+    import {
+      getFirestore,
+      doc,
+      getDoc,
+      updateDoc,
+      deleteField
+    } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js";
+    import {
+      getAuth,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJGaEM_wzqQMcW4HD4M0S-TX6c-F3ESak",
+      authDomain: "akurula-bae89.firebaseapp.com",
+      projectId: "akurula-bae89",
+      storageBucket: "akurula-bae89.firebasestorage.app",
+      messagingSenderId: "884057010989",
+      appId: "1:884057010989:web:79dacebe1c0c99afdad9a4",
+      measurementId: "G-PYQBK3XZG4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    const userDocRef = doc(db, "users", "qT5S0wYZtJVmmfj81M40UXTUj6t2");
+
+    let currentUser = null;
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUser = user;
+        console.log("Usuário logado:", user.email);
+      } else {
+        currentUser = null;
+        alert("Você precisa estar logado.");
+      }
+    });
+
+    // Atualizar Marca
+    document.getElementById("atualizar-marca").addEventListener("click", async () => {
+      const antiga = document.getElementById("marca-antiga").value.trim();
+      const nova = document.getElementById("marca-nova").value.trim();
+      if (!antiga || !nova) return alert("Informe a marca antiga e a nova.");
+      if (!currentUser) return alert("Você precisa estar logado.");
+
+      try {
+        const docSnap = await getDoc(userDocRef);
+        if (!docSnap.exists()) return alert("Documento não encontrado.");
+        const data = docSnap.data();
+        const marcas = data.marcas || {};
+
+        if (!marcas[antiga]) return alert("Marca antiga não encontrada.");
+
+        const modelos = marcas[antiga];
+        const updates = {
+          [`marcas.${nova}`]: modelos,
+          [`marcas.${antiga}`]: deleteField(),
+          atualizadoEm: new Date()
+        };
+
+        await updateDoc(userDocRef, updates);
+
+        document.getElementById("mensagem").innerText = `Marca atualizada de "${antiga}" para "${nova}".`;
+        document.getElementById("marca-antiga").value = "";
+        document.getElementById("marca-nova").value = "";
+      } catch (err) {
+        alert("Erro ao atualizar marca: " + err.message);
+      }
+    });
+
+    // Atualizar Modelo
+    document.getElementById("atualizar-modelo").addEventListener("click", async () => {
+      const marca = document.getElementById("marca-modelo").value.trim();
+      const modeloAntigo = document.getElementById("modelo-antigo").value.trim();
+      const modeloNovo = document.getElementById("modelo-novo").value.trim();
+      const novaFormula = document.getElementById("nova-formula").value;
+
+      if (!marca || !modeloAntigo) return alert("Informe marca e modelo atual.");
+      if (!modeloNovo && !novaFormula) return alert("Preencha novo nome ou nova fórmula.");
+      if (!currentUser) return alert("Você precisa estar logado.");
+
+      try {
+        const docSnap = await getDoc(userDocRef);
+        if (!docSnap.exists()) return alert("Documento não encontrado.");
+        const data = docSnap.data();
+        const marcas = data.marcas || {};
+
+        if (!marcas[marca] || !marcas[marca][modeloAntigo]) {
+          return alert("Marca ou modelo não encontrados.");
+        }
+
+        const valorAtual = marcas[marca][modeloAntigo];
+        const novoValor = novaFormula ? parseInt(novaFormula) : valorAtual;
+        const novoNome = modeloNovo || modeloAntigo;
+
+        const updates = {
+          [`marcas.${marca}.${novoNome}`]: novoValor,
+          atualizadoEm: new Date()
+        };
+
+        if (modeloNovo && modeloNovo !== modeloAntigo) {
+          updates[`marcas.${marca}.${modeloAntigo}`] = deleteField();
+        }
+
+        await updateDoc(userDocRef, updates);
+
+        document.getElementById("mensagem").innerText = `Modelo "${modeloAntigo}" atualizado com sucesso.`;
+        document.getElementById("marca-modelo").value = "";
+        document.getElementById("modelo-antigo").value = "";
+        document.getElementById("modelo-novo").value = "";
+        document.getElementById("nova-formula").value = "";
+      } catch (err) {
+        alert("Erro ao atualizar modelo: " + err.message);
+      }
+    });
+  </script>
+</body>
+</html>

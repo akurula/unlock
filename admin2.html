@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-image: url('luis.png');
+    }
+
+    .container {
+      width: 80%;
+      margin: 20px auto;
+      padding: 20px;
+      background-color: white;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+
+    .unauthorized {
+      color: red;
+      text-align: center;
+      font-size: 24px;
+    }
+
+    .admin-links {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    .admin-links a {
+      margin: 10px 0;
+      color: black;
+      text-decoration: none;
+      font-size: 16px;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        width: 90%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1></h1>
+    <div id="adminContent"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJGaEM_wzqQMcW4HD4M0S-TX6c-F3ESak",
+      authDomain: "akurula-bae89.firebaseapp.com",
+      projectId: "akurula-bae89",
+      storageBucket: "akurula-bae89.firebasestorage.app",
+      messagingSenderId: "884057010989",
+      appId: "1:884057010989:web:79dacebe1c0c99afdad9a4",
+      measurementId: "G-PYQBK3XZG4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getFirestore(app);
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        console.log("Usuário não logado. Redirecionando para index.html.");
+        window.location.href = "./index.html";
+      } else {
+        console.log("Usuário logado:", user.email);
+        checkIfAdmin2(user);
+      }
+    });
+
+    async function checkIfAdmin2(user) {
+      const userRef = doc(db, "users", user.uid);
+      const docSnap = await getDoc(userRef);
+
+      if (docSnap.exists()) {
+        const userData = docSnap.data();
+
+        // Verifica o campo 'admin2' em vez de 'admin'
+        if (userData.admin2) {
+          loadAdminLinks();
+        } else {
+          showUnauthorizedMessage();
+        }
+      } else {
+        console.error("Erro: Usuário não encontrado no Firestore.");
+      }
+    }
+
+    function loadAdminLinks() {
+      const adminLinks = `
+        <div class="admin-links">
+          <a href="promover.html">Promover administrador</a>
+          <a href="saldo.html">Gerenciar saldo</a>
+          <a href="preco.html">Definir preco de cada</a>
+          <a href="paga_controlo.html">Controlar métodos de pagamento</a>
+          <a href="apagar.html">Remover  marca ou modelo</a>
+        </div>
+      `;
+      document.getElementById("adminContent").innerHTML = adminLinks;
+    }
+
+    function showUnauthorizedMessage() {
+      document.getElementById("adminContent").innerHTML = "<h2 class='unauthorized'>Não autorizado! Você não é administrador Senior. Obrigado</h2>";
+    }
+  </script>
+</body>
+</html>

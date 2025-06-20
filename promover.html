@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Aprovar Usuário</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-image: url('luis.png');
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      background: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .message {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="content">
+      <div class="mb-3">
+        <input type="text" class="form-control" id="userId" placeholder="Digite o ID do usuário que pretende promover" />
+      </div>
+
+      <input type="hidden" id="admin" value="admin" />
+
+      <button id="approveButton" class="btn btn-success mb-3">Aprovar</button>
+
+      <div id="message" class="message"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBJGaEM_wzqQMcW4HD4M0S-TX6c-F3ESak",
+      authDomain: "akurula-bae89.firebaseapp.com",
+      projectId: "akurula-bae89",
+      storageBucket: "akurula-bae89.firebasestorage.app",
+      messagingSenderId: "884057010989",
+      appId: "1:884057010989:web:79dacebe1c0c99afdad9a4",
+      measurementId: "G-PYQBK3XZG4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const approveButton = document.getElementById("approveButton");
+        const userIdInput = document.getElementById("userId");
+        const messageDiv = document.getElementById("message");
+        const adminInput = document.getElementById("admin");
+
+        approveButton.addEventListener("click", async () => {
+          const userId = userIdInput.value.trim();
+
+          if (userId) {
+            try {
+              const userRef = doc(db, "users", userId);
+              const userSnap = await getDoc(userRef);
+
+              if (userSnap.exists()) {
+                await setDoc(userRef, {
+                  admin: adminInput.value
+                }, { merge: true });
+
+                messageDiv.innerHTML = `<div class="alert alert-success">Usuário com ID: ${userId} promovido a administrador com sucesso!</div>`;
+              } else {
+                messageDiv.innerHTML = `<div class="alert alert-danger">Usuário com ID: ${userId} não encontrado.</div>`;
+              }
+            } catch (error) {
+              console.error("Erro ao promover o usuário:", error);
+              messageDiv.innerHTML = `<div class="alert alert-danger">Erro ao tentar promover o usuário. Tente novamente.</div>`;
+            }
+          } else {
+            messageDiv.innerHTML = `<div class="alert alert-warning">Por favor, preencha o campo de ID corretamente.</div>`;
+          }
+        });
+      } else {
+        window.location.href = "login.html";
+      }
+    });
+  </script>
+</body>
+</html>
