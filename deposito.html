@@ -158,7 +158,7 @@
                     const data = docSnap.data();
 
                     // Verifica o status de "emola"
-                    const emolaStatus = data.emola1;
+                    const emolaStatus = data.emola;
                     const emolaLink = document.getElementById('emola-link');
                     if (emolaStatus === 'activo') {
                         emolaLink.innerHTML = '<a href="emola.html" style="color: blue; text-decoration: underline; cursor: pointer;">Emola</a>';
@@ -167,7 +167,7 @@
                     }
 
                     // Verifica o status de "mpesa"
-                    const mpesaStatus = data.mpesa1;
+                    const mpesaStatus = data.mpesa;
                     const mpesaLink = document.getElementById('mpesa-link');
                     if (mpesaStatus === 'activo') {
                         mpesaLink.innerHTML = '<a href="mpesa.html" style="color: blue; text-decoration: underline; cursor: pointer;">Mpesa</a>';
