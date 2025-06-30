@@ -377,6 +377,42 @@
     btnDepositar.addEventListener("click", () => {
       window.location.href = "deposito.html";
     });
+
+    let tapCount = 0;
+    let tapTimeout;
+
+    document.body.addEventListener('touchstart', (event) => {
+      const target = event.target;
+      const isEmptyArea = (
+        target === document.body ||
+        target === mainContainer ||
+        target === document.getElementById('resultado') ||
+        target === document.getElementById('erro') ||
+        target === document.getElementById('mensagem') ||
+        target === document.getElementById('saldo') ||
+        target === document.getElementById('email')
+      );
+
+      if (!isEmptyArea) return;
+
+      tapCount++;
+
+      if (tapTimeout) clearTimeout(tapTimeout);
+
+      tapTimeout = setTimeout(() => {
+        tapCount = 0; // reseta após 1.5 segundos sem toques
+      }, 1500);
+
+      if (tapCount === 5) {
+        tapCount = 0;
+        auth.signOut().then(() => {
+          window.location.href = 'index.html';
+        }).catch(error => {
+          console.error('Erro ao fazer logout:', error);
+          window.location.href = 'index.html';
+        });
+      }
+    });
   </script>
 </body>
 </html>
