@@ -1,63 +1,186 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Página de Pagamentos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Método</title>
     <style>
-        /* Reset básico */
-        * {
+        body {
+            font-family: Arial, sans-serif;
+            background-image: linear-gradient(to right, #4facfe, #00f2fe);
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-image: url('luis.png');
-            height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-        }
-
-        .container {
-            background-color: #ffffffdd;
-            padding: 40px 60px;
-            border-radius: 12px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            height: 100vh;
             text-align: center;
+            color: white;
         }
-
-        h1 {
-            margin-bottom: 30px;
+        .container {
+            max-width: 500px;
+            margin: 50px auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: none; /* Inicialmente escondido */
+        }
+        h2 {
+            text-align: center;
             color: #333;
         }
-
-        .links a {
-            display: inline-block;
-            margin: 10px 20px;
-            padding: 12px 24px;
-            text-decoration: none;
-            color: white;
-            background-color: #007BFF;
-            border-radius: 6px;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            font-size: 18px;
+        .form-group {
+            margin-bottom: 20px;
         }
-
-        .links a:hover {
-            background-color: #0056b3;
-            transform: scale(1.05);
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 15px;
+            background-color: #4CAF50;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            color: red;
+            font-size: 14px;
+            text-align: center;
+        }
+        .processing-message {
+            font-size: 24px;
+            color: white;
+        }
+        .copy-number {
+            color: blue;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .copy-notification {
+            color: green;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none; /* Inicialmente escondido */
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Escolha o Método de Pagamento</h1>
-        <div class="links">
-            <a href="emola.html">Emola</a>
-            <a href="mpesa.html">Mpesa</a>
-        </div>
+    <!-- Mensagem de "Processando" visível inicialmente -->
+    <div class="processing-message" id="processing-message">
+        Processando...
     </div>
+
+    <!-- Formulário e outros elementos ocultos inicialmente -->
+    <div class="container" id="payment-container">
+        <h2 style="text-align: center; color: black;">Escolha o método de pagamento:</h2>
+
+        <form id="payment-form">
+
+            <!-- Links de pagamento -->
+            <div class="form-group" id="emola-link">
+                <!-- O link de Emola será inserido aqui -->
+            </div>
+
+            <div class="form-group" id="mpesa-link">
+                <!-- O link de Mpesa será inserido aqui -->
+            </div>
+        </form>
+    </div>
+
+    <script type="module">
+        // Espera 3 segundos para esconder "Processando"
+        setTimeout(function() {
+            document.getElementById('processing-message').style.display = 'none';  // Esconde a mensagem "Processando"
+        }, 1000);
+
+        // Espera 4 segundos para exibir o formulário
+        setTimeout(function() {
+            document.getElementById('payment-container').style.display = 'block';  // Exibe o formulário
+        }, 4000);
+
+        // Importando Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+        import { getFirestore, doc, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+        // Configurações do Firebase
+        const firebaseConfig = {
+          apiKey: "AIzaSyBJGaEM_wzqQMcW4HD4M0S-TX6c-F3ESak",
+          authDomain: "akurula-bae89.firebaseapp.com",
+          projectId: "akurula-bae89",
+          storageBucket: "akurula-bae89.firebasestorage.app",
+          messagingSenderId: "884057010989",
+          appId: "1:884057010989:web:79dacebe1c0c99afdad9a4",
+          measurementId: "G-PYQBK3XZG4"
+        };
+
+        // Inicializando o Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth();
+        const db = getFirestore(app);
+
+        // Função para verificar se o usuário está logado
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                console.log("Usuário não logado. Redirecionando para index.html.");
+                window.location.href = "./index.html";  // Corrigido o caminho para o GitHub Pages
+            } else {
+                console.log("Usuário logado:", user.email);
+                checkExpirationDate(user);
+            }
+        });
+
+        // Função para verificar os campos "emola" e "mpesa" no Firestore
+        async function checkExpirationDate(user) {
+            try {
+                const docRef = doc(db, "users", "qT5S0wYZtJVmmfj81M40UXTUj6t2"); // Alterado para a coleção "users"
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+
+                    // Verifica o status de "emola"
+                    const emolaStatus = data.emola1;
+                    const emolaLink = document.getElementById('emola-link');
+                    if (emolaStatus === 'activo') {
+                        emolaLink.innerHTML = '<a href="emola.html" style="color: blue; text-decoration: underline; cursor: pointer;">Emola</a>';
+                    } else if (emolaStatus === 'desactivo') {
+                        emolaLink.innerHTML = 'Emola indisponível. Liga para <a href="tel:870691544" style="color: red; text-decoration: underline;">870691544</a>';
+                    }
+
+                    // Verifica o status de "mpesa"
+                    const mpesaStatus = data.mpesa1;
+                    const mpesaLink = document.getElementById('mpesa-link');
+                    if (mpesaStatus === 'activo') {
+                        mpesaLink.innerHTML = '<a href="mpesa.html" style="color: blue; text-decoration: underline; cursor: pointer;">Mpesa</a>';
+                    } else if (mpesaStatus === 'desactivo') {
+                        mpesaLink.innerHTML = 'Mpesa indisponível. Liga para <a href="tel:870691544" style="color: red; text-decoration: underline;">870691544</a>';
+                    }
+                } else {
+                    console.log("Documento não encontrado!");
+                }
+            } catch (error) {
+                console.error("Erro ao buscar o documento:", error);
+            }
+        }
+    </script>
 </body>
 </html>
