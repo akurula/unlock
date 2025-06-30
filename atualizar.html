@@ -13,7 +13,7 @@
       background-color: white;
       padding: 25px;
       border-radius: 8px;
-      max-width: 600px;
+      max-width: 700px;
       margin: auto;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     }
@@ -51,33 +51,71 @@
       font-weight: bold;
       color: green;
     }
+    .lista {
+      margin-top: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 5px;
+      background: #f9f9f9;
+    }
+    .lista button {
+      background: #eee;
+      border: 1px solid #ccc;
+      color: #333;
+      padding: 5px 10px;
+      margin: 3px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .lista button:hover {
+      background: #ddd;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h2>Atualizar Marca ou Modelo</h2>
 
+    <!-- Atualizar Marca -->
     <h3>Atualizar Nome da Marca</h3>
     <label for="marca-antiga">Marca Atual:</label>
-    <input type="text" id="marca-antiga" placeholder="Ex: Samsung" />
+    <input type="text" id="marca-antiga" placeholder="Clique numa marca abaixo para preencher" readonly />
     <label for="marca-nova">Novo Nome da Marca:</label>
     <input type="text" id="marca-nova" placeholder="Ex: Samsung Mobile" />
     <button id="atualizar-marca">Atualizar Marca</button>
 
+    <div id="lista-marcas" class="lista">
+      <strong>Marcas disponíveis (clique para selecionar):</strong><br/>
+      <!-- Lista de marcas aqui -->
+    </div>
+
+    <hr style="margin: 30px 0;" />
+
+    <!-- Atualizar Modelo -->
     <h3>Atualizar Modelo</h3>
     <label for="marca-modelo">Marca:</label>
-    <input type="text" id="marca-modelo" placeholder="Ex: Samsung" />
+    <input type="text" id="marca-modelo" placeholder="Clique numa marca acima" readonly />
+    <div id="lista-modelos" class="lista" style="min-height: 50px;">
+      <strong>Modelos disponíveis (clique numa marca acima para ver modelos):</strong><br/>
+    </div>
+
     <label for="modelo-antigo">Modelo Atual:</label>
-    <input type="text" id="modelo-antigo" placeholder="Ex: Galaxy S21" />
+    <input type="text" id="modelo-antigo" placeholder="Clique num modelo para preencher" readonly />
+
     <label for="modelo-novo">Novo Nome do Modelo:</label>
     <input type="text" id="modelo-novo" placeholder="Deixe vazio se não quiser alterar o nome do modelo" />
+
     <label for="nova-formula">Nova Fórmula:</label>
     <select id="nova-formula">
-      <option value="">Nao selecione nova formula, se nao quizer alterar</option>
+      <option value="">Não selecione nova fórmula, se não quiser alterar</option>
       <option value="1">Fórmula 1 (Itel, Hisense, Tecno, Stylo, Hurricane, Azumi, Astro, Morep)</option>
       <option value="2">Fórmula 2 (Mobicel)</option>
       <option value="3">Fórmula 3 (Mobiwire)</option>
     </select>
+
     <button id="atualizar-modelo">Atualizar Modelo</button>
 
     <div id="mensagem"></div>
@@ -113,10 +151,12 @@
     const userDocRef = doc(db, "users", "qT5S0wYZtJVmmfj81M40UXTUj6t2");
 
     let currentUser = null;
+    let marcasGlobal = {}; // guardar marcas para reuso
 
     onAuthStateChanged(auth, (user) => {
       if (user) {
         currentUser = user;
+        carregarMarcas();
         console.log("Usuário logado:", user.email);
       } else {
         currentUser = null;
@@ -124,10 +164,77 @@
       }
     });
 
+    async function carregarMarcas() {
+      try {
+        const docSnap = await getDoc(userDocRef);
+        if (!docSnap.exists()) {
+          alert("Documento não encontrado.");
+          return;
+        }
+        const data = docSnap.data();
+        const marcas = data.marcas || {};
+        marcasGlobal = marcas; // salvar global
+
+        const listaMarcasDiv = document.getElementById("lista-marcas");
+        listaMarcasDiv.innerHTML = '<strong>Marcas disponíveis (clique para selecionar):</strong><br/>';
+
+        Object.keys(marcas).forEach((marca) => {
+          const btn = document.createElement("button");
+          btn.textContent = marca;
+          btn.addEventListener("click", () => {
+            // Marca para atualizar nome da marca
+            document.getElementById("marca-antiga").value = marca;
+            document.getElementById("marca-nova").value = "";
+            document.getElementById("mensagem").innerText = "";
+
+            // Marca para atualizar modelo
+            document.getElementById("marca-modelo").value = marca;
+            document.getElementById("modelo-antigo").value = "";
+            document.getElementById("modelo-novo").value = "";
+            document.getElementById("nova-formula").value = "";
+            carregarModelos(marca);
+          });
+          listaMarcasDiv.appendChild(btn);
+        });
+
+      } catch (error) {
+        alert("Erro ao carregar marcas: " + error.message);
+      }
+    }
+
+    function carregarModelos(marca) {
+      const listaModelosDiv = document.getElementById("lista-modelos");
+      listaModelosDiv.innerHTML = '<strong>Modelos disponíveis:</strong><br/>';
+
+      const modelos = marcasGlobal[marca];
+      if (!modelos) {
+        listaModelosDiv.innerHTML += "<p>Nenhum modelo encontrado para essa marca.</p>";
+        return;
+      }
+
+      Object.keys(modelos).forEach((modelo) => {
+        const btn = document.createElement("button");
+        btn.textContent = modelo;
+        btn.addEventListener("click", () => {
+          document.getElementById("modelo-antigo").value = modelo;
+          document.getElementById("modelo-novo").value = "";
+          // Selecionar fórmula atual automaticamente
+          const formulaAtual = modelos[modelo];
+          const formulaSelect = document.getElementById("nova-formula");
+          formulaSelect.value = formulaAtual ? String(formulaAtual) : "";
+          document.getElementById("mensagem").innerText = "";
+        });
+        listaModelosDiv.appendChild(btn);
+      });
+    }
+
     // Atualizar Marca
     document.getElementById("atualizar-marca").addEventListener("click", async () => {
-      const antiga = document.getElementById("marca-antiga").value.trim();
-      const nova = document.getElementById("marca-nova").value.trim();
+      const antigaInput = document.getElementById("marca-antiga").value;
+      const novaInput = document.getElementById("marca-nova").value;
+      const antiga = antigaInput.trim();
+      const nova = novaInput.trim();
+
       if (!antiga || !nova) return alert("Informe a marca antiga e a nova.");
       if (!currentUser) return alert("Você precisa estar logado.");
 
@@ -137,20 +244,26 @@
         const data = docSnap.data();
         const marcas = data.marcas || {};
 
-        if (!marcas[antiga]) return alert("Marca antiga não encontrada.");
+        // Procura chave que bate com antiga (ignorar espaços)
+        const marcaChave = Object.keys(marcas).find(key => key.trim() === antiga);
 
-        const modelos = marcas[antiga];
+        if (!marcaChave) return alert(`Marca "${antiga}" não encontrada.`);
+
+        const modelos = marcas[marcaChave];
         const updates = {
           [`marcas.${nova}`]: modelos,
-          [`marcas.${antiga}`]: deleteField(),
+          [`marcas.${marcaChave}`]: deleteField(),
           atualizadoEm: new Date()
         };
 
         await updateDoc(userDocRef, updates);
 
-        document.getElementById("mensagem").innerText = `Marca atualizada de "${antiga}" para "${nova}".`;
+        document.getElementById("mensagem").innerText = `Marca atualizada de "${marcaChave}" para "${nova}".`;
         document.getElementById("marca-antiga").value = "";
         document.getElementById("marca-nova").value = "";
+
+        // Recarregar lista para atualizar botões e global
+        await carregarMarcas();
       } catch (err) {
         alert("Erro ao atualizar marca: " + err.message);
       }
@@ -197,6 +310,10 @@
         document.getElementById("modelo-antigo").value = "";
         document.getElementById("modelo-novo").value = "";
         document.getElementById("nova-formula").value = "";
+
+        // Atualizar lista local para manter sincronia
+        await carregarMarcas();
+        document.getElementById("lista-modelos").innerHTML = '<strong>Modelos disponíveis:</strong><br/>';
       } catch (err) {
         alert("Erro ao atualizar modelo: " + err.message);
       }
