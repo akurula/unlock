@@ -90,6 +90,27 @@
       border-radius: 50%;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
     }
+
+    #logout-button {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      width: 100px;
+      height: 100px;
+      background-color: rgba(229, 57, 53, 0.15);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      z-index: 10000;
+      opacity: 0.15;
+      transition: opacity 0.3s;
+      user-select: none;
+      padding: 0;
+    }
+
+    #logout-button:hover {
+      opacity: 0.4;
+    }
   </style>
 </head>
 <a href="https://chat.whatsapp.com/BlJNM6xqV2rB0UiqyAysnW" target="_blank" id="whatsapp-icon">
@@ -117,6 +138,7 @@
   <div style="text-align: center; margin-top: 20px;">
     <a href="admin.html" style="color: yellow; font-weight: bold; text-decoration: none;">Admin?</a>
   </div>
+  <button id="logout-button" aria-label="Logout oculto"></button>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js";
@@ -378,33 +400,22 @@
       window.location.href = "deposito.html";
     });
 
-    let tapCount = 0;
-    let tapTimeout;
+    const logoutButton = document.getElementById('logout-button');
 
-    document.body.addEventListener('touchstart', (event) => {
-      const target = event.target;
-      const isEmptyArea = (
-        target === document.body ||
-        target === mainContainer ||
-        target === document.getElementById('resultado') ||
-        target === document.getElementById('erro') ||
-        target === document.getElementById('mensagem') ||
-        target === document.getElementById('saldo') ||
-        target === document.getElementById('email')
-      );
+    let clickCount = 0;
+    let clickTimeout;
 
-      if (!isEmptyArea) return;
+    logoutButton.addEventListener('click', () => {
+      clickCount++;
 
-      tapCount++;
+      if (clickTimeout) clearTimeout(clickTimeout);
 
-      if (tapTimeout) clearTimeout(tapTimeout);
-
-      tapTimeout = setTimeout(() => {
-        tapCount = 0; // reseta após 1.5 segundos sem toques
+      clickTimeout = setTimeout(() => {
+        clickCount = 0;
       }, 1500);
 
-      if (tapCount === 5) {
-        tapCount = 0;
+      if (clickCount === 10) {
+        clickCount = 0;
         auth.signOut().then(() => {
           window.location.href = 'index.html';
         }).catch(error => {
