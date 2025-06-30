@@ -25,7 +25,7 @@
       margin-top: 15px;
       font-weight: bold;
     }
-    input[type='text'] {
+    select, input[type="text"] {
       width: 100%;
       padding: 10px;
       margin-top: 5px;
@@ -58,15 +58,17 @@
     <h2>Remover Marca ou Modelo</h2>
 
     <h3>Remover Marca Completa</h3>
-    <label for="marca-remover">Marca:</label>
-    <input type="text" id="marca-remover" placeholder="Ex: Samsung" />
+    <label for="marca-remover">Selecione a Marca:</label>
+    <select id="marca-remover"></select>
     <button id="remover-marca">Remover Marca</button>
 
     <h3>Remover Modelo Específico</h3>
     <label for="marca-modelo-remover">Marca:</label>
-    <input type="text" id="marca-modelo-remover" placeholder="Ex: Samsung" />
+    <select id="marca-modelo-remover"></select>
+
     <label for="modelo-remover">Modelo:</label>
-    <input type="text" id="modelo-remover" placeholder="Ex: Galaxy S21" />
+    <select id="modelo-remover"></select>
+
     <button id="remover-modelo">Remover Modelo</button>
 
     <div id="mensagem"></div>
@@ -102,37 +104,61 @@
     const userDocRef = doc(db, "users", "qT5S0wYZtJVmmfj81M40UXTUj6t2");
 
     let currentUser = null;
+    let allMarcas = {};
 
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       if (user) {
         currentUser = user;
-        console.log("Usuário logado:", user.email);
+        await carregarMarcas();
       } else {
-        currentUser = null;
         alert("Você precisa estar logado para remover dados.");
       }
     });
 
+    async function carregarMarcas() {
+      const docSnap = await getDoc(userDocRef);
+      if (!docSnap.exists()) return;
+
+      const data = docSnap.data();
+      allMarcas = data.marcas || {};
+
+      const marcaSelects = [document.getElementById("marca-remover"), document.getElementById("marca-modelo-remover")];
+      marcaSelects.forEach(select => {
+        select.innerHTML = '<option value="">Selecione</option>';
+        Object.keys(allMarcas).forEach(marca => {
+          const option = document.createElement("option");
+          option.value = marca;
+          option.textContent = marca;
+          select.appendChild(option);
+        });
+      });
+    }
+
+    document.getElementById("marca-modelo-remover").addEventListener("change", (e) => {
+      const marcaSelecionada = e.target.value;
+      const modelos = allMarcas[marcaSelecionada] || {};
+      const modeloSelect = document.getElementById("modelo-remover");
+      modeloSelect.innerHTML = '<option value="">Selecione o modelo</option>';
+      Object.keys(modelos).forEach(modelo => {
+        const option = document.createElement("option");
+        option.value = modelo;
+        option.textContent = modelo;
+        modeloSelect.appendChild(option);
+      });
+    });
+
     document.getElementById("remover-marca").addEventListener("click", async () => {
       const marca = document.getElementById("marca-remover").value.trim();
-      if (!marca) return alert("Informe a marca a remover.");
+      if (!marca) return alert("Selecione a marca para remover.");
       if (!currentUser) return alert("Você precisa estar logado.");
 
       try {
-        const docSnap = await getDoc(userDocRef);
-        if (!docSnap.exists()) return alert("Documento do usuário não encontrado.");
-
-        const data = docSnap.data();
-        if (data.marcas && data.marcas[marca]) {
-          await updateDoc(userDocRef, {
-            [`marcas.${marca}`]: deleteField(),
-            atualizadoEm: new Date()
-          });
-          document.getElementById("mensagem").innerText = `Marca "${marca}" removida com sucesso.`;
-          document.getElementById("marca-remover").value = "";
-        } else {
-          alert("Marca não encontrada.");
-        }
+        await updateDoc(userDocRef, {
+          [`marcas.${marca}`]: deleteField(),
+          atualizadoEm: new Date()
+        });
+        document.getElementById("mensagem").innerText = `Marca "${marca}" removida com sucesso.`;
+        await carregarMarcas();
       } catch (err) {
         alert("Erro ao remover marca: " + err.message);
       }
@@ -141,34 +167,30 @@
     document.getElementById("remover-modelo").addEventListener("click", async () => {
       const marca = document.getElementById("marca-modelo-remover").value.trim();
       const modelo = document.getElementById("modelo-remover").value.trim();
-      if (!marca || !modelo) return alert("Informe a marca e o modelo.");
+      if (!marca || !modelo) return alert("Selecione a marca e o modelo.");
       if (!currentUser) return alert("Você precisa estar logado.");
 
       try {
         const docSnap = await getDoc(userDocRef);
-        if (!docSnap.exists()) return alert("Documento do usuário não encontrado.");
-
         const data = docSnap.data();
         const marcas = data.marcas || {};
-
-        if (marcas[marca] && marcas[marca][modelo]) {
-          const updates = {
-            [`marcas.${marca}.${modelo}`]: deleteField(),
-            atualizadoEm: new Date()
-          };
-
-          // Se for o único modelo, também remove a marca
-          if (Object.keys(marcas[marca]).length === 1) {
-            updates[`marcas.${marca}`] = deleteField();
-          }
-
-          await updateDoc(userDocRef, updates);
-          document.getElementById("mensagem").innerText = `Modelo "${modelo}" removido da marca "${marca}".`;
-          document.getElementById("marca-modelo-remover").value = "";
-          document.getElementById("modelo-remover").value = "";
-        } else {
-          alert("Marca ou modelo não encontrados.");
+        if (!marcas[marca] || !marcas[marca][modelo]) {
+          return alert("Marca ou modelo não encontrados.");
         }
+
+        const updates = {
+          [`marcas.${marca}.${modelo}`]: deleteField(),
+          atualizadoEm: new Date()
+        };
+
+        if (Object.keys(marcas[marca]).length === 1) {
+          updates[`marcas.${marca}`] = deleteField();
+        }
+
+        await updateDoc(userDocRef, updates);
+        document.getElementById("mensagem").innerText = `Modelo "${modelo}" removido com sucesso.`;
+        await carregarMarcas();
+        document.getElementById("modelo-remover").innerHTML = "";
       } catch (err) {
         alert("Erro ao remover modelo: " + err.message);
       }
